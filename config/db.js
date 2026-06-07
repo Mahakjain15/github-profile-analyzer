@@ -1,19 +1,13 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-const basePool = mysql.createPool({
-    host: process.env.DB_HOST || '127.0.0.1',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '9977321765',
-    waitForConnections: true,
-    connectionLimit: 5
-});
-
+// सिंगल पूल जो लोकल और क्लाउड दोनों पर काम करेगा
 const pool = mysql.createPool({
     host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '9977321765',
-    database: 'github_analyzer',
+    database: process.env.DB_NAME || 'github_analyzer',
+    port: process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -21,16 +15,11 @@ const pool = mysql.createPool({
 
 async function initializeDatabase() {
     try {
-        const connection = await basePool.getConnection();
-        await connection.query(`CREATE DATABASE IF NOT EXISTS github_analyzer;`);
-        connection.release();
-
         const dbConnection = await pool.getConnection();
-        // पुरानी टेबल हटाकर सारे कॉलम्स वाली नई टेबल बनाएंगे
-        await dbConnection.query(`DROP TABLE IF EXISTS github_profiles;`); 
         
+        // लाइव सर्वर पर IF NOT EXISTS होना चाहिए ताकि डेटा डिलीट न हो
         await dbConnection.query(`
-            CREATE TABLE github_profiles (
+            CREATE TABLE IF NOT EXISTS github_profiles (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 name VARCHAR(255),
@@ -54,7 +43,7 @@ async function initializeDatabase() {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
-        console.log("🚀 MEGA DATABASE READY! NO MORE COLUMN ERRORS POSSIBLE!");
+        console.log("🚀 DATABASE & TABLE READY FOR CLOUD!");
         dbConnection.release();
     } catch (error) {
         console.error("❌ Database setup failed:", error.message);
